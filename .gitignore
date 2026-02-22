@@ -1,0 +1,8 @@
+/__pycache__
+/app/venv
+/app/repositories/__pycache__
+/app/models/__pycache__
+/app/database/__pycache__
+/app/__pycache__
+/app/schemas/__pycache__
+/app/temp_files

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Serviço ST - Listagem de Empresas</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { background-color: #fff; padding: 20px 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto; }
+        h2 { color: #333; border-bottom: 2px solid #0056b3; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        
+        /* Tabela */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; color: #333; }
+        tr:hover { background-color: #f1f1f1; }
+        
+        /* Botões de Ação */
+        .btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 5px; color: white; }
+        .btn-aprovar { background-color: #28a745; }
+        .btn-aprovar:hover { background-color: #218838; }
+        .btn-reprovar { background-color: #dc3545; }
+        .btn-reprovar:hover { background-color: #c82333; }
+        .btn-voltar { background-color: #6c757d; }
+        .btn-voltar:hover { background-color: #5a6268; }
+
+        .loading { text-align: center; padding: 20px; color: #666; font-style: italic; }
+
+        /* Estilos dos Modais */
+        .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fff; margin: 15% auto; padding: 20px; border-radius: 8px; width: 350px; text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .modal-content h3 { margin-top: 0; color: #333; }
+        .modal-content p { color: #555; margin-bottom: 20px; }
+        .modal-content textarea { width: 100%; height: 80px; margin-bottom: 15px; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; resize: none; }
+        .modal-actions { display: flex; justify-content: center; gap: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>
+        Empresas Pendentes de Aprovação
+        <button class="btn btn-voltar" onclick="window.location.href='index'">+ Nova Empresa</button>
+    </h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome / Razão Social</th>
+                <th>Documento (CNPJ/CPF)</th>
+                <th>Perfil</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody id="tabelaEmpresas">
+            <tr>
+                <td colspan="5" class="loading">Carregando empresas pendentes...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div id="modalReprovar" class="modal">
+    <div class="modal-content">
+        <h3 id="tituloReprovar">Reprovar Empresa - [Nome]</h3>
+        <p>Informe o motivo da reprovação:</p>
+        <textarea id="motivoReprovacao" placeholder="Digite o motivo aqui..."></textarea>
+        <div class="modal-actions">
+            <button class="btn btn-voltar" onclick="fecharModal('modalReprovar')">Voltar</button>
+            <button id="btnConfirmarReprovacao" class="btn btn-reprovar">Reprovar</button> 
+        </div>
+    </div>
+</div>
+
+<div id="modalSucesso" class="modal">
+    <div class="modal-content">
+        <h3 id="tituloSucesso">Sucesso</h3>
+        <p id="mensagemSucesso">Operação realizada com sucesso.</p>
+        <button class="btn btn-voltar" onclick="fecharModalSucesso()">Fechar</button>
+    </div>
+</div>
+
+<script>
+    let idEmpresaSelecionada = null;
+
+    async function carregarEmpresas() {
+        const tbody = document.getElementById('tabelaEmpresas');
+        
+        try {
+            console.log("To aqui")
+            const response = await fetch('http://127.0.0.1:8000/pending-company', {method: 'GET', credentials: 'include'});
+            console.log("To aqui2")
+            
+            if (!response.ok) {
+                throw new Error('Erro ao buscar os dados do servidor');
+            }
+
+            const empresas = await response.json();
+            
+            tbody.innerHTML = '';
+
+            if (empresas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Nenhuma empresa pendente de aprovação.</td></tr>';
+                return;
+            }
+
+            empresas.forEach(empresa => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${empresa.id}</td>
+                    <td>${empresa.name}/${empresa.social_name}</td>
+                    <td>${empresa.identity}</td>
+                    <td>${empresa.profile}</td>
+                    <td>
+                        <button class="btn btn-aprovar" onclick="aprovarEmpresa(${empresa.id})">Aprovar</button>
+                        <button class="btn btn-reprovar" onclick="abrirModalReprovar(${empresa.id}, '${empresa.social_name}')">Reprovar</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+        } catch (error) {
+            console.error(error);
+            montarTabelaMock(tbody);
+        }
+    }
+
+    function aprovarEmpresa(id) {
+        document.getElementById('tituloSucesso').innerText = "Sucesso";
+        document.getElementById('modalSucesso').style.display = 'block';
+        document.getElementById('mensagemSucesso').innerText = "Empresa aprovada com sucesso."; 
+        
+        fetch('http://127.0.0.1:8000/decision', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(
+                        {
+                            company_id: id,
+                            decision: 'APPROVED'
+                        }
+                    )
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            return;
+                        } else {
+                            throw new Error('Problemas com a conexão do servidor.');
+                        }
+        })
+        .catch(error => {
+            console.error('Erro de requisição:', error);
+            alert("Erro ao tentar fazer login: " + error.message + " (Verifique se o backend no localhost está rodando).");
+        });
+    }
+
+    function abrirModalReprovar(id, nomeEmpresa) {
+        document.getElementById('tituloReprovar').innerText = `Reprovar Empresa - ${nomeEmpresa}`; 
+        document.getElementById('motivoReprovacao').value = '';
+        
+        const btnConfirmar = document.getElementById('btnConfirmarReprovacao');
+        btnConfirmar.onclick = function() {
+            confirmarReprovacao(id, nomeEmpresa);
+        };
+
+        document.getElementById('modalReprovar').style.display = 'block';
+    }
+
+    async function confirmarReprovacao(id, nomeEmpresa) {
+        const reason = document.getElementById('motivoReprovacao').value;
+        
+        if(reason.trim() === '') {
+            alert("Por favor, preencha o motivo da reprovação [S0].");
+            return;
+        }
+        
+        try {
+        fetch('http://127.0.0.1:8000/decision', {
+            method: 'PATCH',
+            headers: {
+            'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(
+                {
+                    company_id: id,
+                    decision: 'REPROVED',
+                    reason: reason
+                }
+            )
+            })
+            .then(response => {
+                if (response.ok) {
+                    return;
+                } else {
+                    throw new Error('Problemas com a conexão do servidor.');
+                }
+        })
+        .catch(error => {
+            console.error('Erro de requisição:', error);
+            alert("Erro ao tentar fazer login: " + error.message + " (Verifique se o backend no localhost está rodando).");
+        });
+
+            fecharModal('modalReprovar');
+            document.getElementById('tituloSucesso').innerText = "Sucesso";
+            document.getElementById('mensagemSucesso').innerText = "Empresa reprovada com sucesso."; 
+            document.getElementById('modalSucesso').style.display = 'block';
+
+        } catch (error) {
+            console.error(error);
+            alert("Falha na comunicação com a API.");
+        }
+    }
+    function fecharModal(idModal) {
+        document.getElementById(idModal).style.display = 'none';
+    }
+
+    function fecharModalSucesso() {
+        fecharModal('modalSucesso');
+        carregarEmpresas();
+    }
+
+    /*function montarTabelaMock(tbody) {
+        tbody.innerHTML = '';
+        const mock = [
+            { id: 101, nomeRazaoSocial: "Logística Global S.A", documento: "12.345.678/0001-99", perfil: "Transportadora" },
+            { id: 102, nomeRazaoSocial: "João Silva Despachos", documento: "123.456.789-00", perfil: "Despachante Beneficiário" }
+        ];
+        mock.forEach(empresa => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${empresa.id}</td>
+                <td>${empresa.nomeRazaoSocial}</td>
+                <td>${empresa.documento}</td>
+                <td>${empresa.perfil}</td>
+                <td>
+                    <button class="btn btn-aprovar" onclick="aprovarEmpresa(${empresa.id})">Aprovar</button>
+                    <button class="btn btn-reprovar" onclick="abrirModalReprovar(${empresa.id}, '${empresa.nomeRazaoSocial}')">Reprovar</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }*/
+
+    window.onload = carregarEmpresas
+</script>
+
+</body>
+</html>
