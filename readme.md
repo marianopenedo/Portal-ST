@@ -60,7 +60,7 @@ cd src
 docker compose build
 ```
 
-### 2. Levantar os contentores
+### 2. Levantar os containers
 
 ``` bash
 docker compose up
@@ -78,6 +78,25 @@ docker exec -ti backend_portal_st sh
 python populate.py
 ```
 
+### 5. Acessar a api
+
+``` bash
+http://127.0.0.1:8000/login
+```
+### Users default
+
+Para uso interno (admin)
+```bash
+login: admin
+senha: admin
+```
+
+Para uso externo (cliente)
+```bash
+login: external
+senha: external
+```
+
 ------------------------------------------------------------------------
 
 **⚠️ Nota Importante:**\
@@ -85,18 +104,5 @@ Não se esqueça de configurar as suas variáveis de ambiente. Copie o
 arquivo `.env.example` para `.env` e ajuste as credenciais necessárias
 antes de iniciar o projeto.
 
-### Users default
-
-Para uso interno
-```bash
-login: admin
-senha: admin
-```
-
-Para uso externo
-```bash
-login: external
-senha: external
-```
 
 A Parte dois do desafio está localizado dentro da pasta **queries** onde cada número corresponde a sua letra
