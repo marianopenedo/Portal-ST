@@ -6,16 +6,21 @@
     <title>Portal de Serviço ST - Listagem de Empresas</title>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
-        .container { background-color: #fff; padding: 20px 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto; }
-        h2 { color: #333; border-bottom: 2px solid #0056b3; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        .container { 
+            background-color: #fff; 
+            padding: 20px 30px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+            max-width: 1250px;
+            margin: 0 auto; 
+            overflow-x: auto;
+        }
         
-        /* Tabela */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f9fa; color: #333; }
         tr:hover { background-color: #f1f1f1; }
         
-        /* Botões de Ação */
         .btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 5px; color: white; }
         .btn-aprovar { background-color: #28a745; }
         .btn-aprovar:hover { background-color: #218838; }
@@ -26,7 +31,6 @@
 
         .loading { text-align: center; padding: 20px; color: #666; font-style: italic; }
 
-        /* Estilos dos Modais */
         .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
         .modal-content { background-color: #fff; margin: 15% auto; padding: 20px; border-radius: 8px; width: 350px; text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
         .modal-content h3 { margin-top: 0; color: #333; }
@@ -39,8 +43,9 @@
 
 <div class="container">
     <h2>
-        Empresas Pendentes de Aprovação
-        <button class="btn btn-voltar" onclick="window.location.href='index'">+ Nova Empresa</button>
+        Todas as empresas
+        <button class="btn btn-voltar" onclick="window.location.href='index'">Nova Empresa</button>
+        <button class="btn btn-voltar" onclick="window.location.href='dashboard'">Dashboard</button>
     </h2>
 
     <table>
@@ -48,9 +53,11 @@
             <tr>
                 <th>ID</th>
                 <th>Nome / Razão Social</th>
-                <th>Documento (CNPJ/CPF)</th>
+                <th>CNPJ/CPF</th>
                 <th>Perfil</th>
-                <th>Ações</th>
+                <th>Status</th>
+                <th>Faturamento Direto</th>
+                <th>Documento</th>
             </tr>
         </thead>
         <tbody id="tabelaEmpresas">
@@ -88,9 +95,7 @@
         const tbody = document.getElementById('tabelaEmpresas');
         
         try {
-            console.log("To aqui")
-            const response = await fetch('http://127.0.0.1:8000/pending-company', {method: 'GET', credentials: 'include'});
-            console.log("To aqui2")
+            const response = await fetch('http://127.0.0.1:8000/list-company', {method: 'GET', credentials: 'include'});
             
             if (!response.ok) {
                 throw new Error('Erro ao buscar os dados do servidor');
@@ -107,15 +112,16 @@
 
             empresas.forEach(empresa => {
                 const tr = document.createElement('tr');
+                const linkDownload = `<a href="http://127.0.0.1:8000/download-file/${empresa.id}" download class="btn btn-novo" style="text-decoration: none; font-size: 12px; padding: 5px 10px;">⬇️ Baixar</a>`;
+
                 tr.innerHTML = `
                     <td>${empresa.id}</td>
                     <td>${empresa.name}/${empresa.social_name}</td>
                     <td>${empresa.identity}</td>
                     <td>${empresa.profile}</td>
-                    <td>
-                        <button class="btn btn-aprovar" onclick="aprovarEmpresa(${empresa.id})">Aprovar</button>
-                        <button class="btn btn-reprovar" onclick="abrirModalReprovar(${empresa.id}, '${empresa.social_name}')">Reprovar</button>
-                    </td>
+                    <td>${empresa.status}</td>
+                    <td>${empresa.direct_invoicing}</td>
+                    <td>${linkDownload}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -220,28 +226,6 @@
         fecharModal('modalSucesso');
         carregarEmpresas();
     }
-
-    /*function montarTabelaMock(tbody) {
-        tbody.innerHTML = '';
-        const mock = [
-            { id: 101, nomeRazaoSocial: "Logística Global S.A", documento: "12.345.678/0001-99", perfil: "Transportadora" },
-            { id: 102, nomeRazaoSocial: "João Silva Despachos", documento: "123.456.789-00", perfil: "Despachante Beneficiário" }
-        ];
-        mock.forEach(empresa => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${empresa.id}</td>
-                <td>${empresa.nomeRazaoSocial}</td>
-                <td>${empresa.documento}</td>
-                <td>${empresa.perfil}</td>
-                <td>
-                    <button class="btn btn-aprovar" onclick="aprovarEmpresa(${empresa.id})">Aprovar</button>
-                    <button class="btn btn-reprovar" onclick="abrirModalReprovar(${empresa.id}, '${empresa.nomeRazaoSocial}')">Reprovar</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }*/
 
     window.onload = carregarEmpresas
 </script>

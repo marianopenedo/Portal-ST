@@ -7,40 +7,44 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
         .container { background-color: #fff; padding: 20px 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
-        h2 { color: #333; border-bottom: 2px solid #0056b3; padding-bottom: 10px; }
+        h2 { color: #333; border-bottom: 2px solid #0056b3; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; }
         input[type="text"], select, input[type="file"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         
-        /* Estilo para o grupo de simulação */
         .radio-group { margin-bottom: 15px; background: #eef; padding: 10px; border-radius: 5px; border: 1px solid #ccd; }
         .radio-group label { display: inline; font-weight: normal; margin-right: 15px; cursor: pointer; }
         
-        /* Estilo visual para opção desabilitada */
         input[type="radio"]:disabled + label { color: #999; cursor: not-allowed; text-decoration: line-through; }
         
         .hidden { display: none; }
-        button { background-color: #0056b3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; }
+        button { background-color: #0056b3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px}
         button:hover { background-color: #004494; }
         
-        /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
         .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 300px; border-radius: 8px; text-align: center; }
         .btn-fechar { background-color: #dc3545; margin-top: 15px; }
+        .btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-left: 5px; color: white;}
+        .btn-voltar { background-color: #6c757d; }
+        .btn-voltar:hover { background-color: #5a6268; }
+
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Cadastro de Empresa</h2>
+    <h2>
+        Cadastro de Empresa
+        <button class="buton btn-voltar" onclick="window.location.href='dashboard'">Dashboard</button>
+    </h2>
 
     <div class="radio-group">
         <strong>Simular acesso como:</strong><br>
         <div style="margin-top:5px;">
-            <input type="radio" name="tipoUsuario" id="userExterno" value="externo" checked>
+            <input type="radio" name="tipoUsuario" id="userExterno" value="external" checked>
             <label for="userExterno">Usuário Externo</label>
             
-            <input type="radio" name="tipoUsuario" id="userInterno" value="interno">
+            <input type="radio" name="tipoUsuario" id="userInterno" value="internal">
             <label for="userInterno" id="labelInterno">Usuário Interno (Admin)</label>
         </div>
         <small id="msgPermissao" style="color:red; display:none; font-size:11px; margin-top:5px;">* Acesso restrito a perfis administrativos.</small>
@@ -113,7 +117,7 @@
             <input type="file" id="documento" accept=".pdf, .png, .jpg, .jpeg" required>
         </div>
 
-        <button type="button" onclick="salvarCadastro()">+ Salvar</button>
+        <button type="button" onclick="salvarCadastro()">Salvar</button>
     </form>
 </div>
 
@@ -125,45 +129,26 @@
     </div>
 </div>
 
+<div id="modalResponsavel" class="modal">
+    <div class="modal-content">
+        <h3>Atribuir Responsável</h3>
+        <p style="font-size: 14px; color: #555;">
+            Por ser um cadastro interno, é obrigatório atribuir um usuário externo como responsável por esta empresa.
+        </p>
+        
+        <div class="form-group" style="text-align: left;">
+            <label>Nome / Login do Responsável:</label>
+            <input type="text" id="inputNomeResponsavel" placeholder="Digite o usuário responsável..." required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+
+        <div class="modal-actions" style="margin-top: 20px;">
+            <button class="btn btn-voltar" onclick="fecharModal('modalResponsavel')">Cancelar</button>
+            <button class="btn btn-novo" onclick="confirmarResponsávelExterno()">Confirmar e Salvar</button>
+        </div>
+    </div>
+</div>
+
 <script>
-    // --- LÓGICA DE VERIFICAÇÃO DE COOKIES ---
-    function getCookie(nome) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${nome}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-        return null;
-    }
-
-    function verificarPermissoesInternas() {
-        // Lista de cookies que permitem acesso interno
-        // Nota: Verifica se o cookie existe (não nulo)
-        const temMaster = getCookie("EMPRESA_MASTER") !== null;
-        const temLista = getCookie("EMPRESA_LISTA") !== null;
-        const temEdicao = getCookie("EMPRESA_EDICAO") !== null;
-
-        const radioInterno = document.getElementById("userInterno");
-        const msgPermissao = document.getElementById("msgPermissao");
-
-        // Se NÃO tiver nenhum dos cookies de permissão
-        if (!temMaster && !temLista && !temEdicao) {
-            radioInterno.disabled = true; // Desabilita o input
-            document.getElementById("userExterno").checked = true; // Força seleção externo
-            msgPermissao.style.display = "block"; // Mostra msg de erro
-            console.log("Acesso Interno Bloqueado: Cookies de permissão não encontrados.");
-        } else {
-            radioInterno.disabled = false;
-            msgPermissao.style.display = "none";
-            console.log("Acesso Interno Liberado.");
-        }
-    }
-
-    // Executa a verificação assim que a página carrega
-    window.onload = function() {
-        verificarPermissoesInternas();
-    };
-    // ----------------------------------------
-
-    // Alternância dos campos de acordo com o Tipo de Pessoa
     const radios = document.querySelectorAll('input[name="tipoPessoa"]');
     radios.forEach(radio => {
         radio.addEventListener('change', function() {
@@ -181,26 +166,34 @@
         });
     });
 
+
+    let formDataTemporario = null;
+
     function mostrarModal(titulo, mensagem) {
         document.getElementById('modalTitulo').innerText = titulo;
         document.getElementById('modalMensagem').innerText = mensagem;
         document.getElementById('modalSistema').style.display = 'block';
     }
 
-    function fecharModal() {
-        document.getElementById('modalSistema').style.display = 'none';
+    function fecharModal(idModal) {
+        if (idModal) {
+            document.getElementById(idModal).style.display = 'none';
+        } else {
+            document.getElementById('modalSistema').style.display = 'none';
+        }
     }
 
     function salvarCadastro() {
         const tipoUsuario = document.querySelector('input[name="tipoUsuario"]:checked').value;
         const tipoPessoa = document.querySelector('input[name="tipoPessoa"]:checked').value;
-        const name = document.querySelector('input[id="razaoSocial"]').value;
-        const social_name = document.getElementById('nomeFantasia').value
-        const profile = document.getElementById('perfil').value
-        const invoicing = document.getElementById('faturamentoDireto').value
+        let name;
+        const social_name = document.getElementById('nomeFantasia').value;
+        const profile = document.getElementById('perfil').value;
+        const invoicing = document.getElementById('faturamentoDireto').checked;
         let identity;
-        const formData = new FormData()
-        
+        const formData = new FormData();
+        const cpfRegex = /^(\d{3}?\d{3}?\d{3}?\d{2})$/;
+        const cnpjRegex = /^(\d{2}?\d{3}?\d{3}?\d{4}?\d{2})$/;
 
         if(!profile) {
             mostrarModal("Atenção", "Selecione um perfil para a empresa.");
@@ -208,20 +201,23 @@
         }
 
         if(tipoPessoa === 'juridica') {
+            name = document.querySelector('input[id="razaoSocial"]').value;
             identity = document.getElementById('cnpj').value;
-            if(identity.length !== 14) {
-                mostrarModal("Atenção", "CNPJ fornecido inválido. Precisa ter 14 caracteres.");
+            if(identity.length !== 14 || !cnpjRegex.test(identity)) {
+                mostrarModal("Atenção", "CNPJ fornecido inválido.");
                 return;
             }
         } else if (tipoPessoa === 'fisica') {
+            name = document.querySelector('input[id="nome"]').value;
             identity = document.getElementById('cpf').value;
-            if(identity.length !== 11) {
-                mostrarModal("Atenção", "CPF inválido. Precisa ter 11 caracteres.");
+            if(identity.length !== 11 || !cpfRegex.test(identity)) {
+                mostrarModal("Atenção", "CPF inválido.");
                 return;
             }
         } else {
+            name = document.querySelector('input[id="razaoSocialEst"]').value;
             identity = document.getElementById('idEstrangeiro').value;
-            return;
+        
         }
 
         const doc = document.getElementById('documento').files[0];
@@ -236,63 +232,60 @@
                 return;
             }
         }
-        formData.append('file', doc)
-        
-        if (tipoUsuario === 'interno') {
-            formData.append('company_info', JSON.stringify({
-                            service_type: tipoPessoa,
-                            name: name,
-                            identity: identity,
-                            social_name: social_name,
-                            profile: profile,
-                            direct_invoicing: invoicing,
-                            status: 'APPROVED'
-                        }))
-                        fetch('http://127.0.0.1:8000/save-company-info', {
-                            method: 'POST',
-                            body: formData 
-                        })
-                        .then(response => {
-                            if (response.ok) {
-                                alert("Login efetuado com sucesso no servidor local!");
-                                window.location.href = "index";
-                            } else {
-                                throw new Error('Problemas com a conexão do servidor.');
-                            }
-            })
-            .catch(error => {
-                console.error('Erro de requisição:', error);
-                alert("Erro ao tentar fazer login: " + error.message + " (Verifique se o backend no localhost está rodando).");
-            });
-            mostrarModal("Sucesso", "Empresa cadastrada com sucesso! APROVADO AUTOMATICAMENTE (Usuário Interno).");
-        } else {
-            formData.append('company_info', JSON.stringify({
-                            service_type: tipoPessoa,
-                            name: name,
-                            identity: identity,
-                            social_name: social_name,
-                            profile: profile,
-                            direct_invoicing: invoicing,
-                            status: 'PENDING'
-                        }))
-            fetch('http://127.0.0.1:8000/save-company-info', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.ok) {
-                    alert("Empresa cadastrada com sucesso! ESPERANDO APROVAÇÃO");
-                    window.location.href = "index";
-                } else {
-                    throw new Error('Problemas com a conexão do servidor.');
-                }
-            })
-            .catch(error => {
-                console.error('Erro de requisição:', error);
-                alert("Erro ao tentar fazer login: " + error.message + " (Verifique se o backend no localhost está rodando).");
-            });
-            mostrarModal("Sucesso", "Empresa cadastrada com sucesso! AGUARDANDO APROVAÇÃO (Usuário Externo).");
+    
+        formData.append('file', doc);
+        formData.append('user_type', tipoUsuario);
+        formData.append('company_info', JSON.stringify({
+            service_type: tipoPessoa,
+            name: name,
+            identity: identity,
+            social_name: social_name,
+            profile: profile,
+            direct_invoicing: invoicing,
+            status: 'PENDING',
+        }));
+
+        if (tipoUsuario === "internal"){
+            formDataTemporario = formData;
+            document.getElementById('inputNomeResponsavel').value = '';
+            document.getElementById('modalResponsavel').style.display = 'block';
+            return;
         }
+
+        salvarDados(formData, tipoUsuario);
+    }
+
+    function confirmarResponsávelExterno() {
+        const nomeResponsavel = document.getElementById('inputNomeResponsavel').value.trim();
+
+        if (nomeResponsavel === "") {
+            mostrarModal("Atenção", "Por favor, digite o nome do responsável para prosseguir.");
+            return;
+        }
+    
+        formDataTemporario.append('responsavel_externo', nomeResponsavel);
+        fecharModal('modalResponsavel');
+        salvarDados(formDataTemporario, "internal");
+    }
+
+
+    function salvarDados(dadosParaEnviar, tipoUsuario) {
+        fetch('http://127.0.0.1:8000/save-company-info', {
+            method: 'POST',
+            body: dadosParaEnviar 
+        })
+        .then(response => {
+            if (response.ok) {
+                alert(`Empresa cadastrada com sucesso!\n ${tipoUsuario === "internal" ? "APROVADO AUTOMATICAMENTE (Usuário Interno)." : ""}`);
+                window.location.href = "pending";
+            } else {
+                throw new Error('Você não tem acesso para cadastrar como usuário interno, por favor, selecione usuário EXTERNO');
+            }
+        })
+        .catch(error => {
+            console.error('Erro de requisição:', error);
+            mostrarModal("Erro", error.message);
+        });
     }
 </script>
 

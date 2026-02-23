@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Serviço ST - Listagem de Usuários</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { background-color: #fff; padding: 20px 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 950px; margin: 0 auto; }
+        h2 { color: #333; border-bottom: 2px solid #0056b3; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; vertical-align: middle; }
+        th { background-color: #f8f9fa; color: #333; }
+        tr:hover { background-color: #f1f1f1; }
+        
+        .btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; text-decoration: none; color: white; display: inline-block; }
+        .btn-voltar { background-color: #6c757d; }
+        .btn-voltar:hover { background-color: #5a6268; }
+        .btn-novo { background-color: #0056b3; }
+        .btn-novo:hover { background-color: #004494; }
+        .btn-editar { background-color: #ffc107; color: #333; margin-right: 5px; }
+        .btn-editar:hover { background-color: #e0a800; }
+        .btn-excluir { background-color: #dc3545; }
+        .btn-excluir:hover { background-color: #c82333; }
+
+        .badge { padding: 5px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; color: #fff; display: inline-block; text-align: center; }
+        .badge-interno { background-color: #17a2b8; } 
+        .badge-externo { background-color: #6c757d; } 
+
+        .loading { text-align: center; padding: 20px; color: #666; font-style: italic; }
+
+        .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fff; margin: 10% auto; padding: 20px 30px; border-radius: 8px; width: 400px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .modal-content h3 { margin-top: 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #444; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .modal-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
+        .modal-actions button { width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>
+        Gestão de Usuários
+        <div>
+            <a href="user-register" class="btn btn-novo">Novo Usuário</a>
+            <a href="dashboard" class="btn btn-voltar">Dashboard</a>
+        </div>
+    </h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Login</th>
+                <th>E-mail</th>
+                <th>Documento (CPF/CNPJ)</th>
+                <th>Tipo de Usuário</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody id="tabelaUsuarios">
+            <tr>
+                <td colspan="6" class="loading">Carregando usuários...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div id="modalEditarUsuario" class="modal">
+    <div class="modal-content">
+        <h3>Editar Usuário</h3>
+        
+        <input type="hidden" id="editUserId">
+        
+        <div class="form-group">
+            <label>Login *:</label>
+            <input type="text" id="editLogin" required>
+        </div>
+
+        <div class="form-group">
+            <label>E-mail *:</label>
+            <input type="email" id="editEmail" required>
+        </div>
+
+        <div class="form-group">
+            <label>CPF (Preencha CPF ou CNPJ):</label>
+            <input type="text" id="editCpf" placeholder="Apenas números">
+        </div>
+
+        <div class="form-group">
+            <label>CNPJ (Preencha CPF ou CNPJ):</label>
+            <input type="text" id="editCnpj" placeholder="Apenas números">
+        </div>
+
+        <div class="form-group">
+            <label>Tipo de Usuário *:</label>
+            <select id="editUserType" required>
+                <option value="internal">Interno</option>
+                <option value="external">Externo</option>
+            </select>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-voltar" onclick="fecharModal('modalEditarUsuario')">Cancelar</button>
+            <button class="btn btn-novo" onclick="salvarEdicao()">Salvar Alterações</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    
+    let listaUsuariosGlobais = [];
+
+    async function carregarUsuarios() {
+        const tbody = document.getElementById('tabelaUsuarios');
+        
+        try {
+            const response = await fetch('http://127.0.0.1:8000/list-users', {
+                method: 'GET',
+                credentials: 'include'
+            });
+            
+            if (!response.ok) throw new Error('Erro ao buscar os usuários');
+
+            const usuarios = await response.json();
+            listaUsuariosGlobais = usuarios; 
+            
+            tbody.innerHTML = '';
+
+            if (usuarios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhum usuário cadastrado.</td></tr>';
+                return;
+            }
+
+            usuarios.forEach(usuario => {
+                const tr = document.createElement('tr');
+                const documento = usuario.cpf ? usuario.cpf : (usuario.cnpj ? usuario.cnpj : '<span style="color:#999">Não informado</span>');
+                const tipoBadge = usuario.user_type.toLowerCase().includes('interno') 
+                                ? `<span class="badge badge-interno">${usuario.user_type}</span>` 
+                                : `<span class="badge badge-externo">${usuario.user_type}</span>`;
+
+                tr.innerHTML = `
+                    <td>${usuario.id}</td>
+                    <td><strong>${usuario.login}</strong></td>
+                    <td>${usuario.email || '<span style="color:#999">-</span>'}</td>
+                    <td>${documento}</td>
+                    <td>${tipoBadge}</td>
+                    <td>
+                        <button class="btn btn-editar" onclick="editarUsuario(${usuario.id})">Editar</button>
+                        <button class="btn btn-excluir" onclick="excluirUsuario(${usuario.id})">Excluir</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+        } catch (error) {
+            console.error(error);
+            montarTabelaMock(tbody);
+        }
+    }
+
+    
+    function editarUsuario(id) {
+        
+        const usuario = listaUsuariosGlobais.find(u => u.id === id);
+        
+        if (usuario) {
+            
+            document.getElementById('editUserId').value = usuario.id;
+            document.getElementById('editLogin').value = usuario.login || '';
+            document.getElementById('editEmail').value = usuario.email || '';
+            document.getElementById('editCpf').value = usuario.cpf || '';
+            document.getElementById('editCnpj').value = usuario.cnpj || '';
+            document.getElementById('editUserType').value = usuario.user_type || 'Externo';
+
+            
+            document.getElementById('modalEditarUsuario').style.display = 'block';
+        }
+    }
+
+    
+    function fecharModal(idModal) {
+        document.getElementById(idModal).style.display = 'none';
+    }
+
+    
+    async function salvarEdicao() {
+        const id = document.getElementById('editUserId').value;
+        const login = document.getElementById('editLogin').value.trim();
+        const email = document.getElementById('editEmail').value.trim();
+        const cpf = document.getElementById('editCpf').value.trim();
+        const cnpj = document.getElementById('editCnpj').value.trim();
+        const userType = document.getElementById('editUserType').value;
+        
+        if (!login || !email || !userType) {
+            alert("Por favor, preencha os campos obrigatórios (Login e E-mail).");
+            return; 
+        }
+
+        if (!cpf && !cnpj) {
+            alert("Atenção: É obrigatório preencher o CPF ou o CNPJ do usuário.");
+            return; 
+        }
+
+        const payload = {
+            login: login,
+            email: email,
+            cpf: cpf,
+            cnpj: cnpj,
+            user_type: userType
+        };
+
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/update-user/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload)
+            });
+            
+            if(!response.ok) throw new Error("Erro ao atualizar.");
+            
+            alert("Usuário atualizado com sucesso!");
+            fecharModal('modalEditarUsuario');
+            carregarUsuarios(); 
+
+        } catch (error) {
+            console.error(error);
+            alert("Falha ao salvar as alterações.");
+        }
+    }
+
+    async function excluirUsuario(id) {
+        if(confirm("Tem certeza que deseja excluir o usuário " + id + "?")) {
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/delete-user/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                });
+
+                if(!response.ok) throw new Error("Erro ao atualizar.");
+                alert("Usuário deletado com sucesso!");
+                fecharModal('modalEditarUsuario');
+                carregarUsuarios();
+
+            } catch (error) {
+                console.error(error);
+                alert("Falha ao salvar as alterações.");
+            }
+        }
+    }
+
+    window.onload = carregarUsuarios;
+</script>
+
+</body>
+</html>

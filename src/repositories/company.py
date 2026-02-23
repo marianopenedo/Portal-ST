@@ -10,11 +10,15 @@ class CompanyRepository():
     def all_company(self):
         return self.session.execute(select(Company)).scalars().all()
     
+    def catch_file_path(self, company_id):
+        return self.session.execute(select(Company.path_file).where(Company.id == company_id)).scalars().one_or_none()
+
     def insert_company(self, new_company: CompanySchema) -> Company:
-        new_line = Company(**new_company.model_dump())
+        new_line = Company(**new_company.model_dump(exclude_unset=True))
         self.session.add(new_line)
         self.session.commit()
         self.session.refresh(new_line)
+        
         return new_line
 
     def pending_company(self):
